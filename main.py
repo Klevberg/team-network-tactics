@@ -93,9 +93,9 @@ def print_match_summary(match: Match) -> None:
 def main() -> None:
 
     print('\n'
-          'Welcome to [bold yellow]Team Local Tactics[/bold yellow]!'
+          'Welcome to [bold yellow]Team Network Tactics[/bold yellow]!'
           '\n'
-          'Each player choose a champion each time.'
+          'Pick your champions.'
           '\n')
 
     champions = load_some_champs()
@@ -115,7 +115,8 @@ def main() -> None:
     # Match
     match = Match(
         Team([champions[name] for name in player1]),
-        Team([champions[name] for name in player2])
+        Team([champions[name] for name in player2]),
+        4
     )
     match.play()
 

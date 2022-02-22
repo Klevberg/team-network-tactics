@@ -147,7 +147,7 @@ class Team:
     """
     Team consisting in a list of champions.
 
-    Support interating over the team. Each time the iteration begins 
+    Support iterating over the team. Each time the iteration begins 
     the list of champions is shuffled.
     """
 
