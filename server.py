@@ -60,15 +60,13 @@ sock.sendto(champions_pickle, player1_address)
 sock.sendto(champions_pickle, player2_address)
 
 
-while True:
-    player1_champs, player1_address = sock.recvfrom(1024)
-    player1_champs = player1_champs.decode().split()
+for _ in range(2):
+    champs, address = sock.recvfrom(1024)
+    if address == player1_address:
+        player1_champs = champs.decode().split()
+    elif address == player2_address:
+        player2_champs = champs.decode().split()
 
-    player2_champs, player2_address = sock.recvfrom(1024)
-    player2_champs = player2_champs.decode().split()
-
-    if player1_champs and player2_champs:
-        break
 
 champions = db.get_champions()
 
