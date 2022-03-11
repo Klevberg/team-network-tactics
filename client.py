@@ -2,8 +2,17 @@ from rich import print
 from rich.prompt import Prompt
 from rich.table import Table
 
-from champlistloader import load_some_champs
 from core import Champion, Match, Shape, Team
+
+from socket import socket, AF_INET, SOCK_DGRAM
+import pickle
+from jsonpickle import unpickler
+
+
+# Connect to socket
+client = socket(AF_INET, SOCK_DGRAM)
+server_address = ("localhost", 5555)
+client.connect(server_address)
 
 
 def print_available_champs(champions: dict[Champion]) -> None:
@@ -28,8 +37,7 @@ def print_available_champs(champions: dict[Champion]) -> None:
 def input_champion(prompt: str,
                    color: str,
                    champions: dict[Champion],
-                   player1: list[str],
-                   player2: list[str]) -> None:
+                   selected_champs: list[str]) -> None:
 
     # Prompt the player to choose a champion and provide the reason why
     # certain champion cannot be selected
@@ -37,12 +45,12 @@ def input_champion(prompt: str,
         match Prompt.ask(f'[{color}]{prompt}'):
             case name if name not in champions:
                 print(f'The champion {name} is not available. Try again.')
-            case name if name in player1:
+            case name if name in selected_champs:
                 print(f'{name} is already in your team. Try again.')
-            case name if name in player2:
-                print(f'{name} is in the enemy team. Try again.')
+            #case name if name in player2:
+            #    print(f'{name} is in the enemy team. Try again.')
             case _:
-                player1.append(name)
+                selected_champs.append(name)
                 break
 
 
@@ -61,12 +69,8 @@ def print_match_summary(match: Match) -> None:
         round_summary = Table(title=f'Round {index+1}')
 
         # Add columns for each team
-        round_summary.add_column("Red",
-                                 style="red",
-                                 no_wrap=True)
-        round_summary.add_column("Blue",
-                                 style="blue",
-                                 no_wrap=True)
+        round_summary.add_column("Red", style="red", no_wrap=True)
+        round_summary.add_column("Blue", style="blue", no_wrap=True)
 
         # Populate the table
         for key in round:
@@ -90,39 +94,96 @@ def print_match_summary(match: Match) -> None:
         print('\nDraw :expressionless:')
 
 
-def main() -> None:
 
-    print('\n'
-          'Welcome to [bold yellow]Team Network Tactics[/bold yellow]!'
-          '\n'
-          'Pick your champions.'
-          '\n')
+def play_game():
 
-    champions = load_some_champs()
+    color = client.recv(1024).decode()
+
+    print("Waiting for both players to get ready ...")
+
+    data = client.recv(4096)
+    champions = pickle.loads(data)
+
+    print(f'\nYou are team [{color}]{color.title()}[/{color}]')
+    print('Pick your champions.\n')
     print_available_champs(champions)
     print('\n')
 
-    player1 = []
-    player2 = []
+    selected_champs = []
 
     # Champion selection
     for _ in range(2):
-        input_champion('Player 1', 'red', champions, player1, player2)
-        input_champion('Player 2', 'blue', champions, player2, player1)
-
+        input_champion('Input', color, champions, selected_champs)
+    
+    selected_champs = ' '.join(selected_champs)
+    
     print('\n')
 
-    # Match
-    match = Match(
-        Team([champions[name] for name in player1]),
-        Team([champions[name] for name in player2]),
-        4
-    )
-    match.play()
+    client.sendall(selected_champs.encode())
+
+    data = client.recv(4096)
+    match = pickle.loads(data)
 
     # Print a summary
     print_match_summary(match)
 
 
+def view_history():
+
+    history = client.recv(4096)
+    history = pickle.loads(history)
+    print(history)
+
+    for match in history:
+        match = unpickler.decode(match)
+        print(match)
+
+        #match = pickle.loads(match)    # Leads to error
+        #print(match)
+    
+    main()
+
+
+def create_champion():
+
+    print('Input the champion name, then the probability for each result (int, from 0 - 100).\n')
+    name = input('Name: ')
+    rock_p = int(input('Rock probability: '))
+    paper_p = int(input('Paper probability: '))
+    scissors_p = 100 - (rock_p + paper_p)
+
+    if rock_p + paper_p > 100:
+        print('Probability total must not exceed 100')
+        create_champion()
+    
+    print('New character created:\n')
+    print(f'Name: {name}\nRock probability: {rock_p}\nPaper probability: {paper_p}\nScissors probability: {scissors_p}\n')
+
+    client.sendall(f'{name} {rock_p} {paper_p} {scissors_p}'.encode())
+
+    main()
+
+
+def main():
+    print('Please choose one of the following:\n'
+          '1. PLAY GAME\n'
+          '2. CREATE CHAMPION\n'
+          '3. VIEW HISTORY\n')
+    
+    choice = input('Input: ')
+    if choice == '1':
+        client.sendall('1'.encode())
+        play_game()
+    elif choice == '2':
+        client.sendall('2'.encode())
+        create_champion()
+    elif choice == '3':
+        client.sendall('3'.encode())
+        view_history()
+    else:
+        main()
+
+
 if __name__ == '__main__':
+    print('Welcome to [bold yellow]Team Network Tactics[/bold yellow]!\n')
     main()
